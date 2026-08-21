@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: weather
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-config
+  namespace: weather
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  TOPIC_WEATHER: "weather-readings"
+  TOPIC_RAIN: "rain-alerts"
+  EMIT_INTERVAL_MS: "1000"
+  DROP_RATE: "0.10"
+  BATCH_SIZE: "5000"
+  FLUSH_INTERVAL_MS: "10000"
+  DB_URL: "jdbc:postgresql://postgres:5432/weather"
+---
+# Secrets are NOT hardcoded in the source code; the pods read them as env vars.
+# Create it for real with:
+#   kubectl -n weather create secret generic db-credentials \
+#     --from-literal=DB_USER=weather --from-literal=DB_PASSWORD='<your-password>'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: weather
+type: Opaque
+stringData:
+  DB_USER: "weather"
+  DB_PASSWORD: "weatherpass"

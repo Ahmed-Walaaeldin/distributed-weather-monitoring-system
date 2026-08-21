@@ -1,0 +1,53 @@
+# CLOUD BONUS - VM #2 : "Central Base Station Machine"
+# Hosts Kafka + Zookeeper + the rain processor + the central base station.
+# The SQL database is NOT here: it is a managed Aiven PostgreSQL service.
+#
+# Run with:  docker compose --env-file central.env -f docker-compose.central.yml up -d
+version: "3.8"
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.9
+    restart: always
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+
+  kafka:
+    image: bitnami/kafka:3.6
+    restart: always
+    depends_on: [zookeeper]
+    ports:
+      - "9092:9092"            # opened to the stations VM only (security group rule)
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_ENABLE_KRAFT: "no"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,INTERNAL://:29092"
+      # CRITICAL for remote producers: advertise the PUBLIC/private IP of this VM,
+      # otherwise the stations resolve "kafka" and fail after metadata discovery.
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://${CENTRAL_VM_IP}:9092,INTERNAL://kafka:29092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CFG_NUM_PARTITIONS: "10"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  rain-processor:
+    image: rain-processor:1.0.0
+    restart: always
+    depends_on: [kafka]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+
+  central-station:
+    image: central-station:1.0.0
+    restart: always
+    depends_on: [kafka]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+      # Aiven managed PostgreSQL - values come from central.env, never from the code
+      DB_URL: "${DB_URL}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_SSLMODE: "require"
+      BATCH_SIZE: "5000"
+      FLUSH_INTERVAL_MS: "10000"

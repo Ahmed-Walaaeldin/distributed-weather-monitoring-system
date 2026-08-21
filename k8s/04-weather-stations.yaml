@@ -1,0 +1,44 @@
+# 10 weather station pods.
+# A StatefulSet is used (not a Deployment) so every pod gets a STABLE ordinal
+# name: weather-station-0 .. weather-station-9.
+# StationIdentity turns that ordinal into station_id 1..10 automatically.
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-station
+  namespace: weather
+spec:
+  clusterIP: None            # headless: only needed to give the pods DNS identity
+  selector: { app: weather-station }
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: weather-station
+  namespace: weather
+spec:
+  serviceName: weather-station
+  replicas: 10
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app: weather-station }
+  template:
+    metadata:
+      labels: { app: weather-station }
+    spec:
+      containers:
+        - name: weather-station
+          image: weather-station:1.0.0
+          imagePullPolicy: IfNotPresent     # local image built into the Minikube daemon
+          envFrom:
+            - configMapRef: { name: weather-config }
+          env:
+            # HOSTNAME is injected by Kubernetes; the app derives STATION_ID from it
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+          resources:
+            requests: { cpu: "50m",  memory: "128Mi" }
+            limits:   { cpu: "300m", memory: "384Mi" }

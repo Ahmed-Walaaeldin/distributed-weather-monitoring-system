@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: weather
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: kafka }
+  template:
+    metadata:
+      labels: { app: kafka }
+    spec:
+      containers:
+        - name: kafka
+          image: bitnami/kafka:3.6
+          ports:
+            - containerPort: 9092
+          env:
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "zookeeper:2181"
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_ENABLE_KRAFT
+              value: "no"
+            - name: KAFKA_CFG_LISTENERS
+              value: "PLAINTEXT://:9092"
+            # must be the in-cluster DNS name, otherwise clients reconnect to the pod IP
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka.weather.svc.cluster.local:9092"
+            - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_CFG_NUM_PARTITIONS
+              value: "10"
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx768m -Xms512m"
+          readinessProbe:
+            tcpSocket: { port: 9092 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "300m", memory: "768Mi" }
+            limits:   { cpu: "1",    memory: "1536Mi" }
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami/kafka
+      volumes:
+        - name: kafka-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: weather
+spec:
+  selector: { app: kafka }
+  ports:
+    - port: 9092
+      targetPort: 9092
+---
+# creates the two topics explicitly (10 partitions = one per station)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics-init
+  namespace: weather
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-topics
+          image: bitnami/kafka:3.6
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              until kafka-topics.sh --bootstrap-server kafka:9092 --list; do
+                echo "waiting for kafka..."; sleep 5;
+              done
+              kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+                --topic weather-readings --partitions 10 --replication-factor 1
+              kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+                --topic rain-alerts --partitions 10 --replication-factor 1
+              kafka-topics.sh --bootstrap-server kafka:9092 --describe

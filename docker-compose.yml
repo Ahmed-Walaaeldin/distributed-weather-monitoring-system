@@ -1,0 +1,68 @@
+# Local (single machine) run of the whole system - handy for development
+# and reused for the CLOUD BONUS (see cloud/ for the split two-VM version).
+version: "3.8"
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.9
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    ports: ["2181:2181"]
+
+  kafka:
+    image: bitnami/kafka:3.6
+    depends_on: [zookeeper]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_ENABLE_KRAFT: "no"
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_NUM_PARTITIONS: "10"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: weather
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weatherpass
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rain-processor:
+    build:
+      context: .
+      dockerfile: rain-processor/Dockerfile
+    depends_on: [kafka]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  central-station:
+    build:
+      context: .
+      dockerfile: central-station/Dockerfile
+    depends_on: [kafka, postgres]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DB_URL: jdbc:postgresql://postgres:5432/weather
+      DB_USER: weather
+      DB_PASSWORD: weatherpass
+      BATCH_SIZE: "5000"
+      FLUSH_INTERVAL_MS: "10000"
+
+  # 10 stations: docker compose up --scale weather-station=10 will NOT give
+  # distinct ids, so they are declared explicitly through an env template.
+  weather-station:
+    build:
+      context: .
+      dockerfile: weather-station/Dockerfile
+    depends_on: [kafka]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      STATION_ID: "1"
+
+volumes:
+  pgdata:
