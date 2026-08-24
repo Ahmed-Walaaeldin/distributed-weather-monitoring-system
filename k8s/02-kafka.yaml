@@ -13,10 +13,12 @@ spec:
     spec:
       containers:
         - name: kafka
-          image: bitnami/kafka:3.6
+          image: bitnamilegacy/kafka:3.6
           ports:
             - containerPort: 9092
           env:
+            - name: KAFKA_CFG_BROKER_ID
+              value: "1"
             - name: KAFKA_CFG_ZOOKEEPER_CONNECT
               value: "zookeeper:2181"
             - name: ALLOW_PLAINTEXT_LISTENER
@@ -74,7 +76,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: create-topics
-          image: bitnami/kafka:3.6
+          image: bitnamilegacy/kafka:3.6
           command: ["/bin/bash", "-c"]
           args:
             - |

@@ -9,7 +9,10 @@ docker build -t central-station:1.0.0  -f central-station/Dockerfile  .
 
 echo ">> Applying Kubernetes manifests..."
 kubectl apply -f k8s/00-namespace-config.yaml
-kubectl apply -f k8s/01-kafka.yaml
+kubectl apply -f k8s/01-zookeeper.yaml
+kubectl -n weather rollout status deployment/zookeeper --timeout=180s
+kubectl apply -f k8s/02-kafka.yaml
+kubectl apply -f k8s/02-postgres-storage.yaml
 kubectl apply -f k8s/02-postgres.yaml
 
 echo ">> Waiting for Kafka and Postgres..."
