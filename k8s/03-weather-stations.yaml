@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-station
+  namespace: weather
+spec:
+  clusterIP: None
+  selector: { app: weather-station }
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: weather-station
+  namespace: weather
+spec:
+  serviceName: weather-station
+  replicas: 10
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app: weather-station }
+  template:
+    metadata:
+      labels: { app: weather-station }
+    spec:
+      containers:
+        - name: weather-station
+          image: weather-station:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: weather-config }
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+          resources:
+            requests: { cpu: "30m",  memory: "96Mi" }
+            limits:   { cpu: "200m", memory: "256Mi" }

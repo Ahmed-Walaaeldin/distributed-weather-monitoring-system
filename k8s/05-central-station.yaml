@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: central-station
+  namespace: weather
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: central-station }
+  template:
+    metadata:
+      labels: { app: central-station }
+    spec:
+      containers:
+        - name: central-station
+          image: central-station:1.0.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: weather-config }
+            - secretRef:    { name: db-credentials }
+          resources:
+            requests: { cpu: "100m", memory: "192Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
