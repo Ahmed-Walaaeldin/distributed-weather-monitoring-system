@@ -1,3 +1,4 @@
+undefined
 \documentclass[12pt,a4paper]{article}
 
 % ------------------------- Packages -------------------------
@@ -586,12 +587,12 @@ Database persistence was tested by temporarily stopping the central station, rec
 \textbf{Database table} & \textbf{Before restart} & \textbf{After restart} \\
 \midrule
 \texttt{weather\_readings} & 114,804 & 114,804 \\
-\texttt{rain\_alerts} & 34,155 & 34,155 \\
+\texttt{rain\_alerts} & 15,061 & 15,061 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Both counts remained unchanged, demonstrating that the replacement PostgreSQL pod reused the existing PersistentVolumeClaim. After the central station was scaled back to one replica, the number of weather readings continued to increase, confirming that normal ingestion resumed.
+Both counts remained unchanged, demonstrating that the replacement PostgreSQL pod reused the existing PersistentVolumeClaim. After the central station was scaled back to one replica, the number of weather readings increased to 51,404, confirming that normal ingestion resumed.
 
 \reportfigure{images/21-k8s-postgres-persistence-test.png}{0.98}{PostgreSQL pod-replacement test confirming that weather readings and rain alerts survived the restart.}
 
@@ -641,6 +642,7 @@ The project implements the required distributed weather monitoring system using 
 
 Weather readings are published to Kafka, and readings with humidity greater than 70\% generate alerts on a separate topic. The central station consumes both streams and persists their records in PostgreSQL using batched database writes. SQL analysis validates battery distributions, estimates dropped messages, retrieves the latest station status, and checks the relationship between qualifying readings and generated alerts.
 
-The complete system is deployed on Docker Desktop Kubernetes. Kafka operates with an active ZooKeeper service, and PostgreSQL uses a 5~GiB PersistentVolume and PersistentVolumeClaim. A controlled PostgreSQL pod-replacement test preserved all 114,804 weather readings and 34,155 rain alerts, demonstrating that database contents remain available across the lifecycle of the PostgreSQL pod.
+The complete system is deployed on Docker Desktop Kubernetes. Kafka operates with an active ZooKeeper service, and PostgreSQL uses a 5~GiB PersistentVolume and PersistentVolumeClaim. A controlled PostgreSQL pod-replacement test preserved all 114,804 weather readings and 15,061 rain alerts, demonstrating that database contents remain available across the lifecycle of the PostgreSQL pod.
 
 \end{document}
+undefined
