@@ -1,0 +1,11 @@
+
+# LaTeX build files
+report/*.aux
+report/*.log
+report/*.toc
+report/*.out
+report/*.lof
+report/*.lot
+report/*.fls
+report/*.fdb_latexmk
+report/*.synctex.gz
